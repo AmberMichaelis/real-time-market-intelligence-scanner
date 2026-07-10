@@ -1,0 +1,57 @@
+# VS Code
+.vscode/*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment Variables
+.env
+.env.local
+.env.production
+
+# IDE Files
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Coverage / Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build Artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Project Data
+data/*.csv
+data/*.json
+
+# Keep these tracked
+!data/market_map.csv
