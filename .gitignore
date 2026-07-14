@@ -16,6 +16,7 @@ ENV/
 .env
 .env.local
 .env.production
+!.env.example
 
 # IDE Files
 .vscode/
