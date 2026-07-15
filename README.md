@@ -1,3 +1,5 @@
+<!-- @format -->
+
 # Real-Time Market Intelligence Scanner
 
 A Python-based paper-trading scanner that compares football market prices across sportsbook odds data and Kalshi prediction markets.
@@ -6,7 +8,7 @@ A Python-based paper-trading scanner that compares football market prices across
 
 This project uses API integration, real-time data analysis, probability conversion, event matching, logging, and risk-aware automated decision systems.
 
-## Phase 1 Goals
+## Phase 1
 
 - Pull football odds from The Odds API
 - Pull market data from Kalshi
@@ -16,6 +18,28 @@ This project uses API integration, real-time data analysis, probability conversi
 - Generate paper-trading alerts
 - Log simulated trades for review
 
-## Status
+## Architecture
 
-Phase 1: Planning and setup
+main.py
+    Orchestrates application workflow
+
+config.py
+    Loads configuration and secrets
+
+odds_api_client.py
+    Retrieves sportsbook odds data
+
+kalshi_client.py
+    Retrieves Kalshi market data
+
+matcher.py
+    Matches equivalent markets
+
+pricing.py
+    Calculates implied probabilities and value
+
+paper_trader.py
+    Simulates trades
+
+database.py
+    Stores historical data and paper trades
