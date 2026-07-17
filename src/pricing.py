@@ -1,3 +1,5 @@
+from statistics import median
+
 """
 Pricing and probability utilities.
 
@@ -179,3 +181,132 @@ def probability_to_cents(probability: float) -> float:
         )
 
     return probability * 100
+
+def calculate_consensus_probability(
+    probabilities: list[float],
+) -> float:
+    """
+    Calculate a consensus probability using the median.
+
+    The median is used instead of the arithmetic mean because it is
+    less affected by one sportsbook reporting an unusually high or
+    low value.
+
+    Args:
+        probabilities:
+            Fair probabilities from multiple sportsbooks.
+
+    Returns:
+        The median probability.
+
+    Raises:
+        ValueError:
+            If the list is empty or contains an invalid probability.
+    """
+    if not probabilities:
+        raise ValueError(
+            "At least one probability is required."
+        )
+
+    for probability in probabilities:
+        if not 0 <= probability <= 1:
+            raise ValueError(
+                "Every probability must be between 0 and 1."
+            )
+
+    return median(probabilities)
+
+
+def calculate_game_consensus(
+    game: dict,
+) -> dict[str, float]:
+    """
+    Calculate consensus fair probabilities for both teams in one game.
+
+    This function examines every bookmaker's head-to-head market,
+    removes the vig from each bookmaker's prices, and collects the
+    resulting fair probabilities by team.
+
+    Args:
+        game:
+            One raw game dictionary returned by The Odds API.
+
+    Returns:
+        A dictionary mapping each team name to its consensus fair
+        probability.
+
+        Example:
+            {
+                "New England Patriots": 0.3782,
+                "Seattle Seahawks": 0.6218,
+            }
+
+    Raises:
+        ValueError:
+            If no valid two-way moneyline markets are available.
+    """
+    probabilities_by_team: dict[str, list[float]] = {}
+
+    # One game may include odds from many sportsbooks.
+    for bookmaker in game.get("bookmakers", []):
+
+        # A sportsbook may provide several types of markets.
+        for market in bookmaker.get("markets", []):
+
+            # We currently support only the straight winner market.
+            if market.get("key") != "h2h":
+                continue
+
+            outcomes = market.get("outcomes", [])
+
+            # NFL moneyline markets should have exactly two outcomes.
+            if len(outcomes) != 2:
+                continue
+
+            first_outcome = outcomes[0]
+            second_outcome = outcomes[1]
+
+            first_name = first_outcome.get("name")
+            second_name = second_outcome.get("name")
+            first_odds = first_outcome.get("price")
+            second_odds = second_outcome.get("price")
+
+            # Skip incomplete or malformed API records.
+            if (
+                not first_name
+                or not second_name
+                or not isinstance(first_odds, (int, float))
+                or not isinstance(second_odds, (int, float))
+            ):
+                continue
+
+            (
+                first_fair_probability,
+                second_fair_probability,
+            ) = calculate_two_way_fair_probabilities(
+                first_odds,
+                second_odds,
+            )
+
+            probabilities_by_team.setdefault(
+                first_name,
+                [],
+            ).append(first_fair_probability)
+
+            probabilities_by_team.setdefault(
+                second_name,
+                [],
+            ).append(second_fair_probability)
+
+    if len(probabilities_by_team) != 2:
+        raise ValueError(
+            "The game did not contain valid two-way moneyline data."
+        )
+
+    return {
+        team_name: calculate_consensus_probability(
+            team_probabilities
+        )
+        for team_name, team_probabilities
+        in probabilities_by_team.items()
+    }
