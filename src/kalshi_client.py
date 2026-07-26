@@ -176,6 +176,86 @@ def get_markets(
 
     return markets, next_cursor
 
+def get_all_markets(
+    status: str = "open",
+    page_limit: int = 1000,
+    max_pages: int = 10,
+) -> list[dict[str, Any]]:
+    """
+    Retrieve multiple pages of Kalshi markets.
+
+    Kalshi returns markets in pages. Each response may include a
+    cursor that identifies the next page. This function follows those
+    cursors and combines the markets into one list.
+
+    Args:
+        status:
+            Market status to request, such as "open".
+
+        page_limit:
+            Maximum number of markets requested per API call.
+            Kalshi currently allows up to 1,000.
+
+        max_pages:
+            Safety limit controlling how many pages may be requested.
+            This prevents an accidental endless loop or an extremely
+            large number of API calls.
+
+    Returns:
+        A combined list containing markets from every retrieved page.
+
+    Raises:
+        ValueError:
+            If page_limit or max_pages is invalid.
+
+        KalshiAPIError:
+            If Kalshi returns an invalid response or repeats a cursor.
+    """
+    if not 1 <= page_limit <= 1000:
+        raise ValueError(
+            "The page limit must be between 1 and 1000."
+        )
+
+    if max_pages < 1:
+        raise ValueError(
+            "The maximum number of pages must be at least 1."
+        )
+
+    all_markets: list[dict[str, Any]] = []
+    cursor: str | None = None
+
+    # Remember cursors we have already used. If Kalshi accidentally
+    # returns the same cursor repeatedly, this prevents an infinite loop.
+    seen_cursors: set[str] = set()
+
+    for page_number in range(1, max_pages + 1):
+        markets, next_cursor = get_markets(
+            status=status,
+            limit=page_limit,
+            cursor=cursor,
+        )
+
+        all_markets.extend(markets)
+
+        print(
+            f"Retrieved Kalshi page {page_number}: "
+            f"{len(markets)} markets "
+            f"({len(all_markets)} total)."
+        )
+
+        # An empty or missing cursor means there are no more pages.
+        if not next_cursor:
+            break
+
+        if next_cursor in seen_cursors:
+            raise KalshiAPIError(
+                "Kalshi returned a repeated pagination cursor."
+            )
+
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
+
+    return all_markets
 
 def get_market_orderbook(
     market_ticker: str,
