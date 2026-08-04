@@ -255,6 +255,13 @@ def get_all_markets(
         seen_cursors.add(next_cursor)
         cursor = next_cursor
 
+    else:
+        if next_cursor:
+            print(
+                "Warning: The maximum page limit was reached, "
+                "but more Kalshi markets are available."
+        )
+
     return all_markets
 
 def get_market_orderbook(
