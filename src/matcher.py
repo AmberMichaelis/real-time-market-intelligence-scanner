@@ -225,23 +225,13 @@ def build_yes_side_text(
     market: dict[str, Any],
 ) -> str:
     """
-    Build text most likely to describe the Kalshi YES outcome.
+    Build text specifically describing the Kalshi YES outcome.
 
-    The YES subtitle is the strongest source. The title and subtitle
-    are included because some markets describe the YES condition there.
-
-    Args:
-        market:
-            Raw Kalshi market dictionary.
-
-    Returns:
-        Normalized YES-side text.
+    General market titles are intentionally excluded because they
+    frequently contain both competing teams.
     """
     yes_fields = (
         market.get("yes_sub_title", ""),
-        market.get("title", ""),
-        market.get("subtitle", ""),
-        market.get("rules_primary", ""),
     )
 
     combined_text = " ".join(
@@ -250,8 +240,9 @@ def build_yes_side_text(
         if value is not None
     )
 
-    return normalize_text(combined_text)
-
+    return normalize_text(
+        combined_text
+    )
 
 def is_multivariate_market(
     market: dict[str, Any],
@@ -389,8 +380,9 @@ def determine_yes_team(
     """
     Determine which sportsbook team the Kalshi YES side represents.
 
-    A team is accepted only when the YES-related text mentions one
-    team but not the other.
+    The matcher first examines fields specifically describing the
+    YES contract. Only if those fields are unavailable or inconclusive
+    does it fall back to broader market text.
 
     Args:
         home_team:
@@ -403,20 +395,79 @@ def determine_yes_team(
             Raw Kalshi market.
 
     Returns:
-        Team represented by YES, or None when ambiguous.
+        Team represented by YES, or None when the result is ambiguous.
     """
-    yes_text = build_yes_side_text(market)
+    home_aliases = build_team_aliases(
+        home_team
+    )
 
-    home_aliases = build_team_aliases(home_team)
-    away_aliases = build_team_aliases(away_team)
+    away_aliases = build_team_aliases(
+        away_team
+    )
+
+    # ------------------------------------------------------------
+    # Step 1:
+    # Prefer Kalshi fields specifically describing the YES side.
+    # ------------------------------------------------------------
+
+    yes_specific_fields = (
+        market.get("yes_sub_title", ""),
+    )
+
+    yes_specific_text = normalize_text(
+        " ".join(
+            str(value)
+            for value in yes_specific_fields
+            if value is not None
+        )
+    )
+
+    if yes_specific_text:
+        home_mentioned = text_contains_alias(
+            yes_specific_text,
+            home_aliases,
+        )
+
+        away_mentioned = text_contains_alias(
+            yes_specific_text,
+            away_aliases,
+        )
+
+        if home_mentioned and not away_mentioned:
+            return home_team
+
+        if away_mentioned and not home_mentioned:
+            return away_team
+
+    # ------------------------------------------------------------
+    # Step 2:
+    # If the dedicated YES field did not resolve the outcome,
+    # cautiously inspect broader descriptive text.
+    # ------------------------------------------------------------
+
+    fallback_fields = (
+        market.get("subtitle", ""),
+        market.get("rules_primary", ""),
+    )
+
+    fallback_text = normalize_text(
+        " ".join(
+            str(value)
+            for value in fallback_fields
+            if value is not None
+        )
+    )
+
+    if not fallback_text:
+        return None
 
     home_mentioned = text_contains_alias(
-        yes_text,
+        fallback_text,
         home_aliases,
     )
 
     away_mentioned = text_contains_alias(
-        yes_text,
+        fallback_text,
         away_aliases,
     )
 
@@ -427,7 +478,6 @@ def determine_yes_team(
         return away_team
 
     return None
-
 
 def match_game_to_market(
     sportsbook_game: dict[str, Any],
